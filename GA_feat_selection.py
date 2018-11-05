@@ -21,10 +21,17 @@ from sklearn.metrics import mean_squared_error,make_scorer
 
 rkfold = RepeatedKFold(n_splits=5,n_repeats=5)
 
+url = 'https://github.com/GinoWoz1/Learnings/raw/master/'
+    
+X_train_poly = pd.read_csv(url + 'X_trainGA.csv')
+y_train = pd.read_csv(url +'y_trainGA.csv')
+
+
+"""
 X_train_poly = pd.read_csv('C:\\Users\\jstnj\\Google Drive\\Kaggle\\Learnings\\X_train_poly.csv',index_col = ['Unnamed: 0'])
 
 y_train = pd.read_csv('C:\\Users\\jstnj\\Google Drive\\Kaggle\\Learnings\\y_train.csv',header=None,index_col=0)
-
+"""
 
 # Encode the classification labels to numbers
 # Get classes and one hot encoded feature vectors
