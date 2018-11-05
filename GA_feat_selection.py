@@ -23,15 +23,10 @@ rkfold = RepeatedKFold(n_splits=5,n_repeats=5)
 
 url = 'https://github.com/GinoWoz1/Learnings/raw/master/'
     
-X_train_poly = pd.read_csv(url + 'X_trainGA.csv')
-y_train = pd.read_csv(url +'y_trainGA.csv')
+X_train_poly = pd.read_csv(url + 'X_trainGA.csv',index_col= 'Unnamed: 0')
+y_train = pd.read_csv(url +'y_trainGA.csv',header=None,index_col=0)
 
-
-"""
-X_train_poly = pd.read_csv('C:\\Users\\jstnj\\Google Drive\\Kaggle\\Learnings\\X_train_poly.csv',index_col = ['Unnamed: 0'])
-
-y_train = pd.read_csv('C:\\Users\\jstnj\\Google Drive\\Kaggle\\Learnings\\y_train.csv',header=None,index_col=0)
-"""
+X_train_poly.rename(columns={'Constant Term':'tax'},inplace=True)
 
 # Encode the classification labels to numbers
 # Get classes and one hot encoded feature vectors
@@ -130,5 +125,3 @@ def getMetrics(hof):
 	return Scorelist,individualList, percentileList
 
 hof = getHof()
-
-Scorelist,individualList, percentileList =  getMetrics(hof)
