@@ -9,7 +9,7 @@ import matplotlib.pyplot as plt
 from sklearn.model_selection import cross_val_score,RepeatedKFold
 from sklearn.linear_model import ElasticNet
 import warnings
-
+from sklearn.preprocessing import StandardScaler
 warnings.filterwarnings('ignore')
 
 
@@ -34,6 +34,7 @@ X_train_poly.rename(columns={'Constant Term':'tax'},inplace=True)
 
 from sklearn.metrics import mean_squared_error,make_scorer
 import numpy as np
+from sklearn.pipeline import Pipeline
 
 rkfold = RepeatedKFold(n_splits=5,n_repeats=5)
 
@@ -50,13 +51,21 @@ rmse_cv = make_scorer(rmse_cv,greater_is_better=False)
 
 allFeatures = X_train_poly
 
-# Feature subset fitness function
+
+# scale data
+
+elnet_final = ElasticNet(alpha=0,l1_ratio=0.0,tol=1e-05)
+
+elnet_pipe = Pipeline([('std',StandardScaler()),
+                       ('elnet',elnet_final)])
+        
+
+    # Feature subset fitness function
 def getFitness(individual, X_train_poly, y_train):
     # Parse our feature columns that we don't use
     # Apply one hot encoding to the features
     # Apply logistic regression on the data, and calculate accuracy
-    elnet_final = ElasticNet(alpha=0,l1_ratio=0.0,tol=1e-05)
-    cross_val = cross_val_score(elnet_final,X_train_poly,y_train,scoring=rmse_cv,cv=rkfold)
+    cross_val = cross_val_score(elnet_pipe,X_train_poly,y_train,scoring=rmse_cv,cv=rkfold)
     score = np.mean(cross_val)
        
     feature_count =  0
@@ -71,7 +80,7 @@ def getFitness(individual, X_train_poly, y_train):
 #========DEAP GLOBAL VARIABLES (viewable by SCOOP)========
 
 # Create Individual
-creator.create('FitnessMulti', base.Fitness, weights=(-1.0, 1.0))
+creator.create('FitnessMulti', base.Fitness, weights=(1.0, -1.0))
 creator.create("Individual", list, fitness=creator.FitnessMulti)
 
 # Create Toolbox
@@ -82,7 +91,7 @@ toolbox.register("population", tools.initRepeat, list, toolbox.individual)
 
 # Continue filling toolbox...
 toolbox.register("evaluate", getFitness, X_train_poly=X_train_poly, y_train=y_train)
-toolbox.register("mate", tools.cxOnePoint)
+toolbox.register("mate", tools.cxUniform,indpb=0.10)
 toolbox.register("mutate", tools.mutFlipBit, indpb=0.10)
 toolbox.register("select", tools.selNSGA2)
 
@@ -105,7 +114,7 @@ def getHof():
 
         
     # Launch genetic algorithm
-    pop, log = algorithms.eaSimple(pop, toolbox, cxpb=0.9, mutpb=0.1, ngen=numGen, stats=mstats, halloffame=hof, verbose=True)
+    pop, log = algorithms.eaMuPlusLambda(pop, toolbox, mu= 730, lambda_=730,cxpb=0.9, mutpb=0.1, ngen=numGen, stats=mstats, halloffame=hof, verbose=True)
     
     # Return the hall of fame
     return pop,log,hof
