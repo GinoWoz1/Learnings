@@ -23,10 +23,10 @@ rkfold = RepeatedKFold(n_splits=5,n_repeats=5)
 
 url = 'https://github.com/GinoWoz1/Learnings/raw/master/'
     
-X_train_poly = pd.read_csv(url + 'X_trainGA.csv',index_col= 'Unnamed: 0')
+X_train = pd.read_csv(url + 'X_trainGA.csv',index_col= 'Unnamed: 0')
 y_train = pd.read_csv(url +'y_trainGA.csv',header=None,index_col=0)
 
-X_train_poly.rename(columns={'Constant Term':'tax'},inplace=True)
+X_train.rename(columns={'Constant Term':'tax'},inplace=True)
 
 # Encode the classification labels to numbers
 # Get classes and one hot encoded feature vectors
@@ -49,7 +49,7 @@ rmse_cv = make_scorer(rmse_cv,greater_is_better=False)
 
 # select all features
 
-allFeatures = X_train_poly
+allFeatures = X_train
 
 
 # scale data
@@ -61,11 +61,11 @@ elnet_pipe = Pipeline([('std',StandardScaler()),
         
 
     # Feature subset fitness function
-def getFitness(individual, X_train_poly, y_train):
+def getFitness(individual, X_train, y_train):
     # Parse our feature columns that we don't use
     # Apply one hot encoding to the features
     # Apply logistic regression on the data, and calculate accuracy
-    cross_val = cross_val_score(elnet_pipe,X_train_poly,y_train,scoring=rmse_cv,cv=rkfold)
+    cross_val = cross_val_score(elnet_pipe,X_train,y_train,scoring=rmse_cv,cv=rkfold)
     score = np.mean(cross_val)
        
     feature_count =  0
@@ -80,17 +80,17 @@ def getFitness(individual, X_train_poly, y_train):
 #========DEAP GLOBAL VARIABLES (viewable by SCOOP)========
 
 # Create Individual
-creator.create('FitnessMulti', base.Fitness, weights=(1.0, -1.0))
+creator.create('FitnessMulti', base.Fitness, weights=(2.0, -1.0))
 creator.create("Individual", list, fitness=creator.FitnessMulti)
 
 # Create Toolbox
 toolbox = base.Toolbox()
 toolbox.register("attr_bool", random.randint, 0, 1)
-toolbox.register("individual", tools.initRepeat, creator.Individual, toolbox.attr_bool, len(X_train_poly.columns) - 1)
+toolbox.register("individual", tools.initRepeat, creator.Individual, toolbox.attr_bool, len(X_train.columns) - 1)
 toolbox.register("population", tools.initRepeat, list, toolbox.individual)
 
 # Continue filling toolbox...
-toolbox.register("evaluate", getFitness, X_train_poly=X_train_poly, y_train=y_train)
+toolbox.register("evaluate", getFitness, X_train=X_train, y_train=y_train)
 toolbox.register("mate", tools.cxUniform,indpb=0.10)
 toolbox.register("mutate", tools.mutFlipBit, indpb=0.10)
 toolbox.register("select", tools.selNSGA2)
@@ -128,7 +128,7 @@ def getMetrics(hof):
 	Scorelist = []
 	individualList = []
 	for individual in hof:
-		cv_scores = getFitness(individual,X_train_poly,y_train)
+		cv_scores = getFitness(individual,X_train,y_train)
 		Scorelist.append(cv_scores[0])
 	individualList.reverse()
 	return Scorelist,individualList, percentileList
