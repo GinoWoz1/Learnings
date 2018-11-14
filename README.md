@@ -2,7 +2,7 @@
 
 Take work from real life datasets and expand to utilize all the latest and greatest methods
 
-Focus is on automating the data stack from feature engineering to model selection and feature selection. Utilizing both the traditional stack as well as the genetic algorithm based stack (TPOT). 
+Focus is on automating the data stack from feature engineering to model selection and feature selection. Utilizing both the traditional stack as well as the genetic algorithm based stack.
 
 # Highlights:
 
