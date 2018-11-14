@@ -9,25 +9,25 @@ View in NB view for javascript
 
 https://github.com/GinoWoz1/Learnings/blob/master/TPOT%20Automated%20ML%20Talk.ipynb
 
-#Ames Automated stack - Also used in TPOT automated ML Talk:
+# Ames Automated stack - Also used in TPOT automated ML Talk:
   - feature engineering
   - high level spot model check
   - parameter tuning
   - feature selection
   
-#Boston Houses 
+# Boston Houses 
   - EDA
   - Feature engineering
   - model selection via pipelines
   - feature selection
   
-#Bank Data set
+# Bank Data set
   - EDA
   - Feature engineering
   - model selection via pipelins
   - feature selection
   
-#Upcoming
+# Upcoming
   - nba analysis project
   - Feature selection with genetic algorithms (need to brush up and build jupyter notebook)
   - tpot runs on 3 different data sets
