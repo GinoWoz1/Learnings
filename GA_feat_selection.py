@@ -117,7 +117,7 @@ def getHof():
     pop, log = algorithms.eaMuPlusLambda(pop, toolbox, mu= 730, lambda_=730,cxpb=0.9, mutpb=0.1, ngen=numGen, stats=mstats, halloffame=hof, verbose=True)
     
     # Return the hall of fame
-    return pop,log,hof
+    return hof
 
 def getMetrics(hof):
 
@@ -134,3 +134,5 @@ def getMetrics(hof):
 	return Scorelist,individualList, percentileList
 
 hof = getHof()
+
+Scorelist,individualList, percentileList = getMetrics(hof)
