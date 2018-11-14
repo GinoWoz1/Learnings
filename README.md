@@ -1,7 +1,7 @@
 # Learnings
 take work from real life datasets and expand to utilize all the latest and greatest methods
 
-Highlights:
+# Highlights:
 
 TPOT Automated ML Talk: Reviewing TPOT and how machines can represent problems. Human feature engineering helps. 
 
