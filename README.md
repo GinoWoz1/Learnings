@@ -3,7 +3,7 @@ take work from real life datasets and expand to utilize all the latest and great
 
 # Highlights:
 
-# TPOT Automated ML Talk: 
+# TPOT Automated ML Talk ( very long - look for medium article in the next 2 months - December to January)
 
 View in NB view for javascript
 
