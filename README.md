@@ -5,7 +5,9 @@ Highlights:
 
 TPOT Automated ML Talk: Reviewing TPOT and how machines can represent problems. Human feature engineering helps. 
 
-View in NB view for javascript- https://github.com/GinoWoz1/Learnings/blob/master/TPOT%20Automated%20ML%20Talk.ipynb
+View in NB view for javascript
+
+https://github.com/GinoWoz1/Learnings/blob/master/TPOT%20Automated%20ML%20Talk.ipynb
 
 Ames Automated stack - Also used in TPOT automated ML Talk:
   - feature engineering
