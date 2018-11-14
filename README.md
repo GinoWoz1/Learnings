@@ -3,7 +3,7 @@ take work from real life datasets and expand to utilize all the latest and great
 
 # Highlights:
 
-TPOT Automated ML Talk: Reviewing TPOT and how machines can represent problems. Human feature engineering helps. 
+# TPOT Automated ML Talk: Reviewing TPOT and how machines can represent problems. Human feature engineering helps. 
 
 View in NB view for javascript
 
