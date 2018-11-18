@@ -8,9 +8,9 @@ Focus is on automating the data stack from feature engineering to model selectio
 
 # TPOT Automated ML Talk ( very long - look for medium article in the next 2 months - December to January)
 
-View in NB view for javascript
+View in NB viewer for javascript
 
-https://github.com/GinoWoz1/Learnings/blob/master/TPOT%20Automated%20ML%20Talk.ipynb
+http://nbviewer.jupyter.org/github/GinoWoz1/Learnings/blob/master/TPOT%20Automated%20ML%20Talk.ipynb
 
 # Ames Automated stack - Also used in TPOT automated ML Talk:
   - feature engineering
