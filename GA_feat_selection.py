@@ -103,7 +103,7 @@ def getHof():
     numPop = 730
     numGen = 100
     pop = toolbox.population(n=numPop)
-    hof = tools.HallOfFame(numPop * numGen)    
+    hof = tools.ParetoFront()  
     stats_loss = tools.Statistics(key=lambda ind: ind.fitness.values[0])
     stats_size = tools.Statistics(key=lambda ind: ind.fitness.values[1])
     mstats = tools.MultiStatistics(fitness=stats_loss, size=stats_size)
@@ -119,20 +119,26 @@ def getHof():
     # Return the hall of fame
     return hof
 
-def getMetrics(hof):
-
-	# Get list of percentiles in the hall of fame
-	percentileList = [i / (len(hof) - 1) for i in range(len(hof))]
-	
-	# Gather fitness cdata from each percentile
-	Scorelist = []
-	individualList = []
-	for individual in hof:
-		cv_scores = getFitness(individual,X_train,y_train)
-		Scorelist.append(cv_scores[0])
-	individualList.reverse()
-	return Scorelist,individualList, percentileList
 
 hof = getHof()
+
+# 
+
+Scorelist = []
+individualList = []
+
+individual = [1 for i in range(len(allFeatures.columns))]
+
+max_accuracyindices = [index for index in range(len(Scorelist)) if Scorelist[index] == max(Scorelist)]
+
+max_val_individual = [individualList[index] for index in max_accuracyindices]
+
+max_val_subset = [[list(allFeatures)[index] for index in range(len(individual)) if individual[index] == 1] for individual in max_val_individual]
+
+
+
+for individual in hof.items:
+    individualList.append(individual)
+
 
 Scorelist,individualList, percentileList = getMetrics(hof)
