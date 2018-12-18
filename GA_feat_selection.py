@@ -1,23 +1,19 @@
-# try GA
-
-import pandas as pd
-from deap import creator, base, tools, algorithms
-import random
-import numpy as np
-from scipy import interpolate
-import matplotlib.pyplot as plt
 from sklearn.model_selection import cross_val_score,RepeatedKFold
-from sklearn.linear_model import ElasticNet
-import warnings
-from sklearn.preprocessing import StandardScaler
-warnings.filterwarnings('ignore')
-
-
-# Encode the classification labels to numbers
-# Get classes and one hot encoded feature vectors
-
-
 from sklearn.metrics import mean_squared_error,make_scorer
+from deap import creator, base, tools, algorithms
+from sklearn.preprocessing import StandardScaler
+from sklearn.linear_model import ElasticNet
+from sklearn.pipeline import Pipeline
+import matplotlib.pyplot as plt
+from scipy import interpolate
+import pandas as pd
+import numpy as np
+import warnings
+import random
+import numpy
+from jfunc import rmse_cv
+
+warnings.filterwarnings('ignore')
 
 rkfold = RepeatedKFold(n_splits=5,n_repeats=5)
 
@@ -28,17 +24,11 @@ y_train = pd.read_csv(url +'y_trainGA.csv',header=None,index_col=0)
 
 X_train.rename(columns={'Constant Term':'tax'},inplace=True)
 
-# Encode the classification labels to numbers
-# Get classes and one hot encoded feature vectors
+warnings.filterwarnings('ignore')
 
+rkfold = RepeatedKFold(n_splits=3,n_repeats=5)
 
-from sklearn.metrics import mean_squared_error,make_scorer
-import numpy as np
-from sklearn.pipeline import Pipeline
-
-rkfold = RepeatedKFold(n_splits=5,n_repeats=5)
-
-
+"""
 def rmse_cv(y_true, y_pred) : 
     assert len(y_true) == len(y_pred)
     y_pred = np.exp(y_pred)
@@ -46,11 +36,10 @@ def rmse_cv(y_true, y_pred) :
     return np.sqrt(mean_squared_error(y_true,y_pred))
 
 rmse_cv = make_scorer(rmse_cv,greater_is_better=False)
-
+"""
 # select all features
 
 allFeatures = X_train
-
 
 # scale data
 
@@ -60,19 +49,15 @@ elnet_pipe = Pipeline([('std',StandardScaler()),
                        ('elnet',elnet_final)])
         
 
-    # Feature subset fitness function
+
 def getFitness(individual, X_train, y_train):
-    # Parse our feature columns that we don't use
-    # Apply one hot encoding to the features
-    # Apply logistic regression on the data, and calculate accuracy
-    cross_val = cross_val_score(elnet_pipe,X_train,y_train,scoring=rmse_cv,cv=rkfold)
+    # Parse our feature columns that we don't use for training
+    cols = [index for index in range(len(individual)) if individual[index]==0]
+    X_train_reduced = X_train.drop(X_train.columns[cols],axis=1)
+    feature_count = sum(individual)    
+    cross_val = cross_val_score(elnet_pipe,X_train_reduced,y_train,scoring=make_scorer(rmse_cv,greater_is_better=False),cv=rkfold,n_jobs=-1,error_score=0.0)
     score = np.mean(cross_val)
        
-    feature_count =  0
-    for i in range(len(individual)):
-        binary = individual[i]
-        if binary == 1:
-            feature_count+=1
     
     # Return calculated accuracy as fitness
     return (score,feature_count)
@@ -80,28 +65,25 @@ def getFitness(individual, X_train, y_train):
 #========DEAP GLOBAL VARIABLES (viewable by SCOOP)========
 
 # Create Individual
-creator.create('FitnessMulti', base.Fitness, weights=(2.0, -1.0))
+creator.create('FitnessMulti', base.Fitness, weights=(1.0, -1.0))
 creator.create("Individual", list, fitness=creator.FitnessMulti)
 
 # Create Toolbox
 toolbox = base.Toolbox()
 toolbox.register("attr_bool", random.randint, 0, 1)
-toolbox.register("individual", tools.initRepeat, creator.Individual, toolbox.attr_bool, len(X_train.columns) - 1)
+toolbox.register("individual", tools.initRepeat, creator.Individual, toolbox.attr_bool, len(X_train.columns))
 toolbox.register("population", tools.initRepeat, list, toolbox.individual)
 
 # Continue filling toolbox...
 toolbox.register("evaluate", getFitness, X_train=X_train, y_train=y_train)
 toolbox.register("mate", tools.cxUniform,indpb=0.10)
-toolbox.register("mutate", tools.mutFlipBit, indpb=0.10)
+toolbox.register("mutate", tools.mutFlipBit, indpb=0.60)
 toolbox.register("select", tools.selNSGA2)
-
-
-#========
 
 def getHof():
     # Initialize variables to use eaSimple
     numPop = 730
-    numGen = 100
+    numGen =  100
     pop = toolbox.population(n=numPop)
     hof = tools.ParetoFront()  
     stats_loss = tools.Statistics(key=lambda ind: ind.fitness.values[0])
@@ -111,34 +93,27 @@ def getHof():
     mstats.register("stdLoss", np.std)
     mstats.register("minLoss", np.min)
     mstats.register("maxLoss", np.max)
-
-        
+    
+    
     # Launch genetic algorithm
-    pop, log = algorithms.eaMuPlusLambda(pop, toolbox, mu= 730, lambda_=730,cxpb=0.9, mutpb=0.1, ngen=numGen, stats=mstats, halloffame=hof, verbose=True)
+    pop, log = algorithms.eaMuPlusLambda(pop, toolbox, mu= 730, lambda_=730,cxpb=0.4, mutpb=0.6, ngen=numGen, stats=mstats, halloffame=hof, verbose=True)
     
     # Return the hall of fame
     return hof
 
-
 hof = getHof()
 
-# 
+# look at keys
 
-Scorelist = []
-individualList = []
+hof.keys
 
-individual = [1 for i in range(len(allFeatures.columns))]
+hof_individuals = hof.items
+hof_individuals = list(reversed(hof_individuals))
 
-max_accuracyindices = [index for index in range(len(Scorelist)) if Scorelist[index] == max(Scorelist)]
-
-max_val_individual = [individualList[index] for index in max_accuracyindices]
-
-max_val_subset = [[list(allFeatures)[index] for index in range(len(individual)) if individual[index] == 1] for individual in max_val_individual]
-
-
-
-for individual in hof.items:
-    individualList.append(individual)
-
-
-Scorelist,individualList, percentileList = getMetrics(hof)
+for x in enumerate(hof.keys):
+    num= x[0]
+    columns = [list(allFeatures)[index] for index in range(len(hof_individuals[num])) if hof_individuals[num][index] == 1]  
+    cross_val = cross_val_score(elnet_pipe,X_train[columns],y_train,scoring=make_scorer(rmse_cv,greater_is_better=False),cv=rkfold,n_jobs=-1)
+    print('run #'+' '+str(num)+'\n\n' + str(x[1]),np.mean(cross_val))
+    cross_val = cross_val_score(elnet_pipe,X_train[columns],y_train,scoring=make_scorer(rmse_cv,greater_is_better=False),cv=rkfold,n_jobs=-1)
+          
