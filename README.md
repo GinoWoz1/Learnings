@@ -12,6 +12,8 @@ View in NB viewer for javascript
 
 http://nbviewer.jupyter.org/github/GinoWoz1/Learnings/blob/master/TPOT%20Automated%20ML%20Talk.ipynb
 
+# Wikipedia forecasting (kaggle competition) using LSTM
+
 # Ames Automated stack - Also used in TPOT automated ML Talk:
   - feature engineering
   - high level spot model check
@@ -29,12 +31,6 @@ http://nbviewer.jupyter.org/github/GinoWoz1/Learnings/blob/master/TPOT%20Automat
   - Feature engineering
   - model selection via pipelins
   - feature selection
-  
-# Upcoming
-  - nba analysis project
-  - Feature selection with genetic algorithms (need to brush up and build jupyter notebook)
-  - tpot runs on 3 different data sets
-  - using few (https://github.com/lacava/few/blob/master/few/few.py) to test other representational methods for feature selection
-  - utilizing few or featureworks for automating the feature engineering aspect
+
   
 
