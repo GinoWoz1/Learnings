@@ -6,7 +6,7 @@ Focus is on automating the data stack from feature engineering to model selectio
 
 # Highlights:
 
-# TPOT Automated ML Talk ( very long - look for medium article in the next 2 months - December to January)
+# TPOT Automated ML Talk 
 
 View in NB viewer for javascript
 
