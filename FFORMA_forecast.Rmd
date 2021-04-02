@@ -1,0 +1,356 @@
+---
+title: "Hyndman Method"
+author: "JJ"
+date: "3/7/2021"
+output: html_document
+---
+
+# read data
+
+```{r}
+
+load('/Users/xjxj179/Downloads/hyndman_method/Forecast_test.RData')
+
+#load pacman
+library(pacman)
+
+#load related packages
+p_load(stringr,caret,purrr,fabletools,tidyr,dplyr,magrittr,tsibble,feasts,future,tidymodels,cowplot,gratis,DataExplorer,httr)
+path = "~//Documents/GitHub/Learnings/hyndman_method_data/"
+
+# read list of global prices 
+files = list.files(path = path, pattern= "*Global.*.csv", all.files=FALSE,
+    full.names=FALSE)
+read_files = function(accessor){
+  
+  file = read.csv(str_glue(path,'/',files[accessor])) %>%
+    set_colnames(c('DATE','value')) %>%
+    mutate(dataset = gsub(".csv",'',files[accessor]))
+  
+}
+
+# create tsibbles for each data set
+df_monthly = map_dfr(1:length(files),read_files) %>%
+   mutate(month = tsibble::yearmonth(as.character(DATE))) %>%
+   as_tsibble(key = dataset,index =month) %>%
+   fill_gaps(value =0)
+
+
+```
+
+# extract features and split into train and test 
+
+```{r}
+
+# extract time series features from the time series using feasts
+features_df = df_monthly %>% features(value,feature_set("feasts"))
+
+# load libraries
+p_load(caret,rsample)
+
+# plot the densities of the time series
+DataExplorer::plot_density(features_df)
+
+
+```
+
+# explore the features
+
+```{r}
+
+# generate 3 sets of 100 time series based on nComp from GRATIS
+generate_time_series = function(accessor){
+x = generate_ts(n.ts = 100,freq=12,nComp =accessor,n=97,output_format = "tsibble")
+}
+
+# generate time series via future_map
+# create 100 time series of 3,4 and 5 component mixture models
+plan(multisession, gc = TRUE,workers = 3)
+ts = furrr::future_map(3:5,generate_time_series)
+future:::ClusterRegistry("stop")
+
+```
+
+```{r message=FALSE, warning=FALSE}
+
+#function to create a mappable df to unpack the time series and feaqtures
+map_df = function(accessor){
+  empty = tibble(rows = 1:100) %>%
+    mutate(list_element = accessor)
+}
+
+#mapping df
+df_mapped = map_dfr(1:3,map_df) %>%
+  mutate(row = row_number())
+
+# function to unpack the time series from list of lists 
+get_timeseries = function(list_number,length,row){
+  time_series = ts[[list_number]][[length]] %>% as_tibble() %>% mutate(dataset = str_c("time_series_",row)) %>%
+    set_colnames(c('month','value','dataset'))  
+  time_series 
+}
+
+# function for getting features from the list of list of time series
+get_features = function(list_number,length,row){
+  feats =  ts[[list_number]][[length]] %>% as_tsibble() %>% features(value,feature_set(pkgs = "feasts")) %>%
+    mutate(dataset = str_c("time_series_",row))
+  feats
+}
+
+# generated time series
+df_generated = pmap_dfr(list(df_mapped$list_element,df_mapped$rows,df_mapped$row),get_timeseries)
+
+# generated time series features
+features_df_generated = pmap_dfr(list(df_mapped$list_element,df_mapped$rows,df_mapped$row),get_features)
+
+```
+
+# augment the time series with other features
+
+```{r fig.height=30, fig.width=30, message=FALSE, warning=FALSE}
+
+# initiate list to collect time series plots
+plot_list = list()
+for(i in 1:length(ts[[1]])){
+  g = ts[[1]][[i]] %>% autoplot()
+  plot_list[[i]] = g
+}
+
+# use cowplot to plot time series
+plot_grid(plotlist = plot_list,ncol = 10)
+
+```
+
+#  split data for modelling
+
+```{r}
+
+# create test and train
+split <- initial_split( features_df, prop = .7,seed =3)
+train_df <- training(split)
+test_df <- testing(split)
+
+```
+
+# create cv datasets for training "best model"
+
+```{r}
+
+# create cv dataset for Global Prices data
+cv_ts = df_monthly %>% filter(dataset %in% (train_df %>% pull(dataset))) %>%
+ filter(lubridate::year(DATE) >= 2013) %>% # only choose last 8 years of data
+ stretch_tsibble(.init = 48, .step = 1) %>%
+  fill_gaps(value = 0) %>%
+  filter(.id > 36) %>% select(dataset,month,.id,value)
+
+# create cv dataset for generated time series
+cv_ts_generated = df_generated %>% as_tsibble(key = dataset,index = month) %>%
+  stretch_tsibble(.init=48,.step = 1) %>%
+  fill_gaps(value = 0)%>%
+  filter(.id > 36)
+
+```
+
+# train the models
+
+```{r}
+
+# set number of cores
+num_cores = 14
+
+# function to take the time series and parallelize training
+train_data = function(ts){
+  
+  # mappings to then be used in future_map
+  data_mappings = ts %>% distinct(dataset,.id)
+  
+  # model and predict
+  fable_generated = 
+      future_map2_dfr(data_mappings$dataset,data_mappings$.id,
+          ~ ts %>% filter(ts$dataset == .x & .id == .y) %>%
+        model(snaive = fable::SNAIVE(value ~ lag(lag=12)),
+          naive = fable::NAIVE(value),
+          arima = fable::ARIMA(value),
+          theta = fable::THETA(value),
+          ets =    fable::ETS(value)) %>%
+     forecast(h = "1 month"))
+}
+
+# collect forecasts for generated time series and global prices time series
+plan(multisession, gc = TRUE,workers = num_cores)
+
+# perform forecasts
+global_forecasts = train_data(cv_ts )
+generated_forecasts = train_data(cv_ts_generated)
+
+future:::ClusterRegistry("stop")
+
+```
+
+# train data and look at all the models over time
+
+```{r}
+
+# function to take the time series and paralelize training
+train_data = function(ts){
+  
+  data_mappings = ts %>% distinct(dataset,.id)
+
+  fable_generated = 
+    future_map2_dfr(data_mappings$dataset,data_mappings$.id,
+        ~ ts %>% filter(ts$dataset == .x & .id == .y) %>%
+      model(snaive = fable::SNAIVE(value ~ lag(lag=12)),
+        naive = fable::NAIVE(value),
+        arima = fable::ARIMA(value),
+        theta = fable::THETA(value),
+        ets =    fable::ETS(value)) %>%
+   forecast(h = "1 month"))
+
+  
+}
+
+plan(multisession,gc = TRUE,workers = 14)
+
+# create cv dataset for Global Prices data
+cv_ts = df_monthly %>% filter(dataset %in% (train_df %>% pull(dataset))) %>%
+ filter(lubridate::year(DATE) >= 2013) %>% # only choose last 8 years of data
+ stretch_tsibble(.init = 48, .step = 1) %>%
+  fill_gaps(value = 0) %>%
+  filter(.id > 36) %>% select(dataset,month,.id,value)
+
+# create cv dataset for generated time series
+cv_ts_generated = df_generated %>% as_tsibble(key = dataset,index = month) %>%
+  stretch_tsibble(.init=48,.step = 1) %>%
+  fill_gaps(value = 0)%>%
+  filter(.id > 36)
+
+plan(multisession, gc = TRUE,workers = 14)
+
+df_fable = train_data(cv_ts)
+
+future:::ClusterRegistry("stop")
+tsibble::slide
+# create future_map df for multiprocessing on generated time series
+plan(multisession,gc = TRUE,workers = 14)
+
+# collect forecasts for generate time series
+generated_forecasts = train_data(cv_ts_generated)
+
+```
+
+# Calculate "best model" and prepare test and training data
+
+```{r}
+
+# best model from seasonal time series
+best_model = df_fable %>%
+  fabletools::accuracy(df_monthly) %>%
+  group_by(dataset) %>%
+  filter(MASE == min(MASE,na.rm = TRUE))
+
+# recipe for splitting data for training the forest model
+item_recipe <- training(split) %>% 
+  left_join(best_model %>% select(dataset,.model), by = c("dataset"
+= "dataset")) %>%
+  recipe(.model ~.) %>%
+  step_rm(dataset) %>%
+  step_naomit(all_predictors()) %>%
+  prep()
+
+# prepare the test data set
+item_testing <- item_recipe %>%
+  bake(testing(split))
+
+# juice the training data set
+item_training <- juice(item_recipe)
+
+```
+
+# set cores for boost model
+```{r}
+
+# set parallel plan to train model
+all_cores <- parallel::detectCores(logical = FALSE)
+
+library(doParallel)
+cl <- makePSOCKcluster(all_cores)
+registerDoParallel(cl)
+
+#set model for classification
+boost_model = boost_tree(mode = "classification",trees = 5000,learn_rate = 0.001) %>%
+  set_engine("xgboost") %>%
+  fit(.model ~., data = item_training %>% head(100))
+
+
+```
+
+# predict the weights for the model
+
+```{r}
+
+# weights 
+weights_df <- boost_model %>%   
+  predict(item_testing, type = "prob")
+
+#append the data
+model_weights = test_df %>%
+  select(dataset) %>%
+  bind_cols(weights_df)
+
+```
+
+
+# weight the predictions
+
+```{r}
+
+# apply the weights to the last 12 months
+weighted_predictions = df_fable_test %>% as_tibble()%>%
+  filter(lubridate::year(month) == 2020 ) %>%
+  select(-c(.id,value)) %>%
+  pivot_wider(id_cols = c(dataset,month),names_from = .model,values_from = .mean) %>%
+  inner_join(model_weights, by =c("dataset" = "dataset")) %>%
+  mutate(naive_pred = naive * .pred_naive,
+         arima_pred = arima * .pred_arima,
+         theta_pred = theta * .pred_theta,
+         ets_pred = ets * .pred_ets) %>%
+  mutate(weighted_ensemble = naive_pred + theta_pred + ets_pred + arima_pred ) %>%
+  select(-c(contains('.pred'),contains('_pred')))
+
+```
+
+
+#Score the weight ensemble
+
+```{r}
+
+# score the models
+weighted_predictions %>%
+  pivot_longer(cols = !c(dataset,month),values_to = 'predictions') %>%
+  inner_join(df_monthly, by =c("dataset" = "dataset","month" = "month"))%>%
+  group_by(dataset,name)%>%
+  yardstick::mase(value,predictions) %>%
+  group_by(dataset) %>%
+  filter(.estimate == min(.estimate))%>%
+  rename(best_model = name) %>%
+  select(-c(.estimator))
+
+
+```
+
+# plot one of the time series
+
+```{r}
+
+df_fable_test %>%
+    rename(distribution = value)%>%
+    left_join(weighted_predictions %>% select(c(dataset,month,weighted_ensemble)),by = c("dataset" = "dataset","month" = "month")) %>%
+    filter(dataset == "GlobalCocoa") %>%
+    inner_join(df_monthly, by =c("dataset" = "dataset","month" = "month")) %>%
+    ggplot() + geom_line(aes(x = month,y = .mean,color = .model)) +
+    geom_line(aes(x = month, y = weighted_ensemble,color  = "goldenrod"), size = 2) + 
+    geom_line(aes(x = month, y = value),color = "black",size = 2)
+
+```
+
+
